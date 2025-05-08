@@ -21,6 +21,7 @@ export default function Home() {
   const fetchJobs = async (page: number = 1, location: string = '') => {
     try {
       setLoading(true);
+      setError(null); // Clear any previous errors
 
       let url = getApiUrl(`${API_CONFIG.ENDPOINTS.JOBS}?page=${page}&limit=10`);
 
@@ -29,7 +30,16 @@ export default function Home() {
       }
 
       console.log('Fetching URL:', url);
-      const response = await axios.get(url);
+
+      // Add timeout to axios request
+      const response = await axios.get(url, {
+        timeout: 10000, // 10 second timeout
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+
       console.log('API Response:', response.data);
 
       let jobsData: Job[] = [];
@@ -59,31 +69,96 @@ export default function Home() {
           // Unexpected format
           console.error('Unexpected API response format:', response.data);
           setError('Received unexpected data format from server');
+
+          // Use mock data as fallback
+          useMockData(page);
+          return;
         }
+      } else {
+        // No data received
+        console.error('No data received from API');
+        setError('No data received from server');
+
+        // Use mock data as fallback
+        useMockData(page);
+        return;
       }
 
-
+      // Update state with the data
       setJobs(jobsData);
       setPagination(paginationData);
 
-
+      // If we're on a page with no results (e.g., after deletion), go back to page 1
       if (jobsData.length === 0 && paginationData && paginationData.total > 0 && page > 1) {
         setCurrentPage(1);
         fetchJobs(1, location);
         return;
       }
 
-
+      // Select the first job if none is selected
       if (!selectedJob && jobsData.length > 0) {
         setSelectedJob(jobsData[0]);
       }
 
       setLoading(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching jobs:', err);
-      setError('Failed to fetch jobs. Please try again later.');
-      setLoading(false);
+
+      // Provide more specific error messages
+      if (err.code === 'ECONNABORTED') {
+        setError('Request timed out. The server might be experiencing high load.');
+      } else if (err.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        setError(`Server error: ${err.response.status} ${err.response.statusText}`);
+      } else if (err.request) {
+        // The request was made but no response was received
+        setError('No response from server. Please check your connection or try again later.');
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        setError(`Error: ${err.message}`);
+      }
+
+      // Use mock data as fallback
+      useMockData(page);
     }
+  };
+
+  // Function to use mock data when API fails
+  const useMockData = (page: number) => {
+    // Create some mock job data
+    const mockJobs: Job[] = Array.from({ length: 10 }, (_, i) => ({
+      _id: `mock-${i + 1 + (page - 1) * 10}`,
+      jobIdNumeric: `${i + 1 + (page - 1) * 10}`,
+      title: `Sample Job ${i + 1 + (page - 1) * 10}`,
+      company: 'Demo Company',
+      location: 'Remote',
+      job_link: '#',
+      employment_type: 'Full-time',
+      source: 'Sample Data',
+      experience: '1-3 years',
+      companyImageUrl: '',
+      postedDateTime: new Date().toISOString(),
+      min_exp: 1,
+      max_exp: 3,
+      country: 'Sample Country',
+      description: 'This is a sample job description used when the API is unavailable.'
+    }));
+
+    setJobs(mockJobs);
+    setPagination({
+      total: 100, // Simulate 100 total jobs
+      page: page,
+      limit: 10,
+      pages: 10
+    });
+
+    // Select the first job if none is selected
+    if (!selectedJob && mockJobs.length > 0) {
+      setSelectedJob(mockJobs[0]);
+    }
+
+    setLoading(false);
   };
 
   // Fetch jobs on component mount or when page/search changes
