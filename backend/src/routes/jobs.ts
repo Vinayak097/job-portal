@@ -9,11 +9,15 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
 
+    console.log(`GET /api/jobs - Page: ${page}, Limit: ${limit}, Skip: ${skip}`);
+
     const jobs = await JobModel.find()
       .skip(skip)
       .limit(limit);
 
     const total = await JobModel.countDocuments();
+
+    console.log(`Found ${jobs.length} jobs out of ${total} total`);
 
     res.json({
       jobs,
@@ -25,6 +29,7 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
       }
     });
   } catch (error) {
+    console.error('Error in GET /api/jobs:', error);
     res.status(500).json({ message: 'Server error', error });
   }
 });
@@ -35,6 +40,8 @@ router.get('/search', async (req: Request, res: Response): Promise<void> => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
+
+    console.log(`GET /api/jobs/search - Location: ${location}, Page: ${page}, Limit: ${limit}, Skip: ${skip}`);
 
     let query = {};
     if (location) {
@@ -47,6 +54,8 @@ router.get('/search', async (req: Request, res: Response): Promise<void> => {
 
     const total = await JobModel.countDocuments(query);
 
+    console.log(`Search found ${jobs.length} jobs out of ${total} total matching jobs`);
+
     res.json({
       jobs,
       pagination: {
@@ -57,6 +66,7 @@ router.get('/search', async (req: Request, res: Response): Promise<void> => {
       }
     });
   } catch (error) {
+    console.error('Error in GET /api/jobs/search:', error);
     res.status(500).json({ message: 'Server error', error });
   }
 });
