@@ -31,7 +31,6 @@ const JobDetail: React.FC<JobDetailProps> = ({ job }) => {
                 alt={`${job.company} logo`}
                 className="h-16 w-16 object-contain rounded-md border border-gray-200"
                 onError={(e) => {
-                  
                   e.currentTarget.src = 'https://via.placeholder.com/64?text=' + job.company.charAt(0);
                 }}
               />

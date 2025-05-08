@@ -5,7 +5,7 @@ import axios from 'axios';
 import JobList from './components/JobList';
 import JobDetail from './components/JobDetail';
 import SearchBar from './components/SearchBar';
-import { Job, PaginationInfo, JobsResponse } from './types';
+import { Job, PaginationInfo } from './types';
 import { API_CONFIG, getApiUrl } from './config';
 
 export default function Home() {
@@ -18,115 +18,7 @@ export default function Home() {
   const [searchLocation, setSearchLocation] = useState<string>('');
 
 
-  const fetchJobs = async (page: number = 1, location: string = '') => {
-    try {
-      setLoading(true);
-      setError(null); // Clear any previous errors
-
-      let url = getApiUrl(`${API_CONFIG.ENDPOINTS.JOBS}?page=${page}&limit=10`);
-
-      if (location) {
-        url = getApiUrl(`${API_CONFIG.ENDPOINTS.SEARCH_JOBS}?location=${location}&page=${page}&limit=10`);
-      }
-
-      console.log('Fetching URL:', url);
-
-      // Add timeout to axios request
-      const response = await axios.get(url, {
-        timeout: 10000, // 10 second timeout
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      });
-
-      console.log('API Response:', response.data);
-
-      let jobsData: Job[] = [];
-      let paginationData: PaginationInfo | null = null;
-
-      // Handle different response formats
-      if (response.data) {
-        if (Array.isArray(response.data)) {
-          // If the response is an array of jobs
-          jobsData = response.data;
-          paginationData = {
-            total: response.data.length,
-            page: page,
-            limit: 10,
-            pages: Math.ceil(response.data.length / 10)
-          };
-        } else if (response.data.jobs && Array.isArray(response.data.jobs)) {
-          // If the response has a jobs property that is an array
-          jobsData = response.data.jobs;
-          paginationData = response.data.pagination || {
-            total: response.data.jobs.length,
-            page: page,
-            limit: 10,
-            pages: Math.ceil(response.data.jobs.length / 10)
-          };
-        } else {
-          // Unexpected format
-          console.error('Unexpected API response format:', response.data);
-          setError('Received unexpected data format from server');
-
-          // Use mock data as fallback
-          useMockData(page);
-          return;
-        }
-      } else {
-        // No data received
-        console.error('No data received from API');
-        setError('No data received from server');
-
-        // Use mock data as fallback
-        useMockData(page);
-        return;
-      }
-
-      // Update state with the data
-      setJobs(jobsData);
-      setPagination(paginationData);
-
-      // If we're on a page with no results (e.g., after deletion), go back to page 1
-      if (jobsData.length === 0 && paginationData && paginationData.total > 0 && page > 1) {
-        setCurrentPage(1);
-        fetchJobs(1, location);
-        return;
-      }
-
-      // Select the first job if none is selected
-      if (!selectedJob && jobsData.length > 0) {
-        setSelectedJob(jobsData[0]);
-      }
-
-      setLoading(false);
-    } catch (err: any) {
-      console.error('Error fetching jobs:', err);
-
-      // Provide more specific error messages
-      if (err.code === 'ECONNABORTED') {
-        setError('Request timed out. The server might be experiencing high load.');
-      } else if (err.response) {
-        // The request was made and the server responded with a status code
-        // that falls out of the range of 2xx
-        setError(`Server error: ${err.response.status} ${err.response.statusText}`);
-      } else if (err.request) {
-        // The request was made but no response was received
-        setError('No response from server. Please check your connection or try again later.');
-      } else {
-        // Something happened in setting up the request that triggered an Error
-        setError(`Error: ${err.message}`);
-      }
-
-      // Use mock data as fallback
-      useMockData(page);
-    }
-  };
-
-  // Function to use mock data when API fails
-  const useMockData = (page: number) => {
-    // Create some mock job data
+  const createMockData = (page: number): { jobs: Job[], pagination: PaginationInfo } => {
     const mockJobs: Job[] = Array.from({ length: 10 }, (_, i) => ({
       _id: `mock-${i + 1 + (page - 1) * 10}`,
       jobIdNumeric: `${i + 1 + (page - 1) * 10}`,
@@ -145,26 +37,142 @@ export default function Home() {
       description: 'This is a sample job description used when the API is unavailable.'
     }));
 
-    setJobs(mockJobs);
-    setPagination({
-      total: 100, // Simulate 100 total jobs
-      page: page,
-      limit: 10,
-      pages: 10
-    });
-
-    // Select the first job if none is selected
-    if (!selectedJob && mockJobs.length > 0) {
-      setSelectedJob(mockJobs[0]);
-    }
-
-    setLoading(false);
+    return {
+      jobs: mockJobs,
+      pagination: {
+        total: 100,
+        page: page,
+        limit: 10,
+        pages: 10
+      }
+    };
   };
 
-  // Fetch jobs on component mount or when page/search changes
+  const fetchJobs = async (page: number = 1, location: string = '') => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      let url = getApiUrl(`${API_CONFIG.ENDPOINTS.JOBS}?page=${page}&limit=10`);
+
+      if (location) {
+        url = getApiUrl(`${API_CONFIG.ENDPOINTS.SEARCH_JOBS}?location=${location}&page=${page}&limit=10`);
+      }
+
+      console.log('Fetching URL:', url);
+
+      const response = await axios.get(url, {
+        timeout: 10000,
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('API Response:', response.data);
+
+      let jobsData: Job[] = [];
+      let paginationData: PaginationInfo | null = null;
+
+      if (response.data) {
+        if (Array.isArray(response.data)) {
+          jobsData = response.data;
+          paginationData = {
+            total: response.data.length,
+            page: page,
+            limit: 10,
+            pages: Math.ceil(response.data.length / 10)
+          };
+        } else if (response.data.jobs && Array.isArray(response.data.jobs)) {
+          jobsData = response.data.jobs;
+          paginationData = response.data.pagination || {
+            total: response.data.jobs.length,
+            page: page,
+            limit: 10,
+            pages: Math.ceil(response.data.jobs.length / 10)
+          };
+        } else {
+          console.error('Unexpected API response format:', response.data);
+          setError('Received unexpected data format from server');
+
+          const mockData = createMockData(page);
+          setJobs(mockData.jobs);
+          setPagination(mockData.pagination);
+
+          if (!selectedJob && mockData.jobs.length > 0) {
+            setSelectedJob(mockData.jobs[0]);
+          }
+
+          setLoading(false);
+          return;
+        }
+      } else {
+        console.error('No data received from API');
+        setError('No data received from server');
+
+        const mockData = createMockData(page);
+        setJobs(mockData.jobs);
+        setPagination(mockData.pagination);
+
+        if (!selectedJob && mockData.jobs.length > 0) {
+          setSelectedJob(mockData.jobs[0]);
+        }
+
+        setLoading(false);
+        return;
+      }
+
+      setJobs(jobsData);
+      setPagination(paginationData);
+
+      if (jobsData.length === 0 && paginationData && paginationData.total > 0 && page > 1) {
+        setCurrentPage(1);
+        fetchJobs(1, location);
+        return;
+      }
+
+      if (!selectedJob && jobsData.length > 0) {
+        setSelectedJob(jobsData[0]);
+      }
+
+      setLoading(false);
+    } catch (err) {
+      console.error('Error fetching jobs:', err);
+
+      if (err instanceof Error) {
+        if (axios.isAxiosError(err)) {
+          if (err.code === 'ECONNABORTED') {
+            setError('Request timed out. The server might be experiencing high load.');
+          } else if (err.response) {
+            setError(`Server error: ${err.response.status} ${err.response.statusText}`);
+          } else if (err.request) {
+            setError('No response from server. Please check your connection or try again later.');
+          } else {
+            setError(`Error: ${err.message}`);
+          }
+        } else {
+          setError(`Error: ${err.message}`);
+        }
+      } else {
+        setError('An unknown error occurred');
+      }
+
+      const mockData = createMockData(page);
+      setJobs(mockData.jobs);
+      setPagination(mockData.pagination);
+
+      if (!selectedJob && mockData.jobs.length > 0) {
+        setSelectedJob(mockData.jobs[0]);
+      }
+
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     console.log(`Fetching jobs for page ${currentPage} with search: ${searchLocation || 'none'}`);
     fetchJobs(currentPage, searchLocation);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage]);
 
   // Handle job selection

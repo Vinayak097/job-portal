@@ -27,8 +27,8 @@ const JobList: React.FC<JobListProps> = ({
     pageNumbers.push(1);
 
     // Calculate range around current page
-    let startPage = Math.max(2, page - 1);
-    let endPage = Math.min(pages - 1, page + 1);
+    const startPage = Math.max(2, page - 1);
+    const endPage = Math.min(pages - 1, page + 1);
 
     // Add ellipsis after first page if needed
     if (startPage > 2) {
