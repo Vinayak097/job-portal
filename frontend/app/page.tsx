@@ -6,6 +6,7 @@ import JobList from './components/JobList';
 import JobDetail from './components/JobDetail';
 import SearchBar from './components/SearchBar';
 import { Job, PaginationInfo, JobsResponse } from './types';
+import { API_CONFIG, getApiUrl } from './config';
 
 export default function Home() {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -21,10 +22,10 @@ export default function Home() {
     try {
       setLoading(true);
 
-      let url = `http://localhost:5000/api/jobs?page=${page}&limit=10`;
+      let url = getApiUrl(`${API_CONFIG.ENDPOINTS.JOBS}?page=${page}&limit=10`);
 
       if (location) {
-        url = `http://localhost:5000/api/jobs/search?location=${location}&page=${page}&limit=10`;
+        url = getApiUrl(`${API_CONFIG.ENDPOINTS.SEARCH_JOBS}?location=${location}&page=${page}&limit=10`);
       }
 
       console.log('Fetching URL:', url);
