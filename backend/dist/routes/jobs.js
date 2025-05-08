@@ -15,29 +15,60 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const Job_1 = __importDefault(require("../models/Job"));
 const router = express_1.default.Router();
-router.get('/', (_, res) => __awaiter(void 0, void 0, void 0, function* () {
+router.get('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const jobs = yield Job_1.default.find();
-        res.json(jobs);
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+        console.log(`GET /api/jobs - Page: ${page}, Limit: ${limit}, Skip: ${skip}`);
+        const jobs = yield Job_1.default.find()
+            .skip(skip)
+            .limit(limit);
+        const total = yield Job_1.default.countDocuments();
+        console.log(`Found ${jobs.length} jobs out of ${total} total`);
+        res.json({
+            jobs,
+            pagination: {
+                total,
+                page,
+                limit,
+                pages: Math.ceil(total / limit)
+            }
+        });
     }
     catch (error) {
+        console.error('Error in GET /api/jobs:', error);
         res.status(500).json({ message: 'Server error', error });
     }
 }));
 router.get('/search', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const location = req.query.location;
-        if (!location) {
-            const jobs = yield Job_1.default.find();
-            res.json(jobs);
-            return;
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+        console.log(`GET /api/jobs/search - Location: ${location}, Page: ${page}, Limit: ${limit}, Skip: ${skip}`);
+        let query = {};
+        if (location) {
+            query = { location: { $regex: location, $options: 'i' } };
         }
-        const jobs = yield Job_1.default.find({
-            location: { $regex: location, $options: 'i' }
+        const jobs = yield Job_1.default.find(query)
+            .skip(skip)
+            .limit(limit);
+        const total = yield Job_1.default.countDocuments(query);
+        console.log(`Search found ${jobs.length} jobs out of ${total} total matching jobs`);
+        res.json({
+            jobs,
+            pagination: {
+                total,
+                page,
+                limit,
+                pages: Math.ceil(total / limit)
+            }
         });
-        res.json(jobs);
     }
     catch (error) {
+        console.error('Error in GET /api/jobs/search:', error);
         res.status(500).json({ message: 'Server error', error });
     }
 }));

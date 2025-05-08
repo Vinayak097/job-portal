@@ -6,7 +6,6 @@ import jobRoutes from './routes/jobs';
 
 dotenv.config();
 
-// Connect to MongoDB
 connectDB();
 
 const app = express();
