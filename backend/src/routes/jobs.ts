@@ -3,10 +3,27 @@ import JobModel from '../models/Job';
 
 const router: Router = express.Router();
 
-router.get('/', async (_: Request, res: Response): Promise<void> => {
+router.get('/', async (req: Request, res: Response): Promise<void> => {
   try {
-    const jobs = await JobModel.find();
-    res.json(jobs);
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+
+    const jobs = await JobModel.find()
+      .skip(skip)
+      .limit(limit);
+
+    const total = await JobModel.countDocuments();
+
+    res.json({
+      jobs,
+      pagination: {
+        total,
+        page,
+        limit,
+        pages: Math.ceil(total / limit)
+      }
+    });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error });
   }
@@ -15,18 +32,30 @@ router.get('/', async (_: Request, res: Response): Promise<void> => {
 router.get('/search', async (req: Request, res: Response): Promise<void> => {
   try {
     const location = req.query.location as string | undefined;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
 
-    if (!location) {
-      const jobs = await JobModel.find();
-      res.json(jobs);
-      return;
+    let query = {};
+    if (location) {
+      query = { location: { $regex: location, $options: 'i' } };
     }
 
-    const jobs = await JobModel.find({
-      location: { $regex: location, $options: 'i' }
-    });
+    const jobs = await JobModel.find(query)
+      .skip(skip)
+      .limit(limit);
 
-    res.json(jobs);
+    const total = await JobModel.countDocuments(query);
+
+    res.json({
+      jobs,
+      pagination: {
+        total,
+        page,
+        limit,
+        pages: Math.ceil(total / limit)
+      }
+    });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error });
   }
